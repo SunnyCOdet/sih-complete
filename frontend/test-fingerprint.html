@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fingerprint Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-section {
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>Real Fingerprint Scanning Test</h1>
+    
+    <div class="test-section">
+        <h3>Device Compatibility Check</h3>
+        <button onclick="checkCompatibility()">Check Compatibility</button>
+        <div id="compatibility-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Fingerprint Scan Test</h3>
+        <button onclick="testFingerprintScan()" id="scan-btn">Test Fingerprint Scan</button>
+        <div id="scan-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Browser Information</h3>
+        <div id="browser-info"></div>
+    </div>
+
+    <script>
+        // Display browser information
+        document.getElementById('browser-info').innerHTML = `
+            <p><strong>User Agent:</strong> ${navigator.userAgent}</p>
+            <p><strong>WebAuthn Support:</strong> ${window.PublicKeyCredential ? 'Yes' : 'No'}</p>
+            <p><strong>HTTPS:</strong> ${location.protocol === 'https:' ? 'Yes' : 'No'}</p>
+        `;
+
+        async function checkCompatibility() {
+            const resultDiv = document.getElementById('compatibility-result');
+            
+            try {
+                if (!window.PublicKeyCredential) {
+                    resultDiv.innerHTML = '<div class="error">❌ WebAuthn is not supported in this browser</div>';
+                    return;
+                }
+
+                const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+                
+                if (available) {
+                    resultDiv.innerHTML = '<div class="success">✅ Fingerprint scanner is available and ready!</div>';
+                } else {
+                    resultDiv.innerHTML = '<div class="error">❌ No fingerprint scanner detected</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error checking compatibility: ${error.message}</div>`;
+            }
+        }
+
+        async function testFingerprintScan() {
+            const resultDiv = document.getElementById('scan-result');
+            const scanBtn = document.getElementById('scan-btn');
+            
+            scanBtn.disabled = true;
+            resultDiv.innerHTML = '<div class="info">🔄 Starting real fingerprint authentication...</div>';
+
+            try {
+                // Check compatibility first
+                if (!window.PublicKeyCredential) {
+                    throw new Error('WebAuthn not supported');
+                }
+
+                const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+                if (!available) {
+                    throw new Error('No fingerprint scanner available');
+                }
+
+                // Create credential options for fingerprint authentication
+                const credentialRequestOptions = {
+                    challenge: crypto.getRandomValues(new Uint8Array(32)),
+                    allowCredentials: [],
+                    userVerification: 'required',
+                    timeout: 60000,
+                    rpId: window.location.hostname,
+                };
+
+                // Request fingerprint authentication
+                const credential = await navigator.credentials.get({
+                    publicKey: credentialRequestOptions
+                });
+
+                if (credential) {
+                    const credentialId = Array.from(new Uint8Array(credential.rawId))
+                        .map(b => b.toString(16).padStart(2, '0'))
+                        .join('');
+                    
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ Real fingerprint authentication successful!<br>
+                            <strong>Credential ID:</strong> ${credentialId.substring(0, 32)}...<br>
+                            <strong>Type:</strong> ${credential.type}<br>
+                            <strong>Authenticator:</strong> ${credential.authenticatorAttachment || 'platform'}<br>
+                            <strong>Fingerprint ID:</strong> fp_real_${credentialId.substring(0, 16)}_${Date.now()}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = '<div class="error">❌ Fingerprint authentication failed</div>';
+                }
+
+            } catch (error) {
+                if (error.name === 'NotAllowedError' || error.name === 'AbortError') {
+                    resultDiv.innerHTML = '<div class="error">❌ Fingerprint authentication was cancelled</div>';
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+                }
+            } finally {
+                scanBtn.disabled = false;
+            }
+        }
+
+        // Auto-check compatibility on page load
+        window.onload = checkCompatibility;
+    </script>
+</body>
+</html>
