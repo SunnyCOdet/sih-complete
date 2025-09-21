@@ -158,9 +158,9 @@ docker-compose.yml
 .dockerignore
 
 # Deployment scripts (keep these)
-# deploy.sh
-# deploy.bat
-# quick-deploy.js
+ deploy.sh
+ deploy.bat
+ quick-deploy.js
 
 # Test scripts (keep these)
 # test-*.js

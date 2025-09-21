@@ -58,7 +58,7 @@ try {
 // Create initial commit
 console.log('💾 Creating initial commit...');
 try {
-  execSync('git commit -m "Initial commit: Secure Voting System with blockchain, zero-knowledge proofs, and public transparency"', { stdio: 'inherit' });
+  execSync('git commit -m "backend"', { stdio: 'inherit' });
   console.log('✅ Initial commit created');
 } catch (error) {
   console.error('❌ Failed to create initial commit:', error.message);
