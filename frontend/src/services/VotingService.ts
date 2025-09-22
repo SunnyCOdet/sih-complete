@@ -9,10 +9,7 @@ export interface VoterRegistration {
 }
 
 export interface VoteSubmission {
-  publicKey: string;
-  voteHash: string;
-  signature: string;
-  zeroKnowledgeProof: string;
+  voterId: string;
   candidateId: string;
 }
 
@@ -99,45 +96,36 @@ export class VotingService {
   }
 
   /**
-   * Create vote with zero-knowledge proof
+   * Create vote with zero-knowledge proof (deprecated - using simple API now)
    */
   static async createVote(candidateId: string, voterId: string, privateKey: string): Promise<VoteData> {
-    try {
-      console.log('Creating vote with:', { candidateId, voterId, privateKey: privateKey.substring(0, 10) + '...' });
-      
-      const response = await axios.post(`${API_BASE_URL}/create-vote`, {
-        candidateId,
-        voterId,
-        privateKey
-      });
-      
-      console.log('Create vote response:', response.data);
-      return response.data.voteData;
-    } catch (error: any) {
-      console.error('Error creating vote:', error);
-      
-      if (error.response) {
-        const errorMessage = error.response.data?.error || error.response.data?.message || 'Server error';
-        throw new Error(`Failed to create vote: ${errorMessage}`);
-      } else if (error.request) {
-        throw new Error('No response from server. Please check if backend is running.');
-      } else {
-        throw new Error(error.message || 'Failed to create vote');
-      }
-    }
+    // This method is deprecated - we now use the simple API
+    throw new Error('createVote method is deprecated. Use submitVote directly.');
   }
 
   /**
    * Submit a vote
    */
-  static async submitVote(voteSubmission: VoteSubmission): Promise<{ success: boolean; error?: string }> {
+  static async submitVote(voteSubmission: VoteSubmission): Promise<{ success: boolean; error?: string; message?: string }> {
     try {
       console.log('Submitting vote to:', `${API_BASE_URL}/submit`);
       console.log('Vote submission data:', voteSubmission);
       
       const response = await axios.post(`${API_BASE_URL}/submit`, voteSubmission);
       console.log('Vote submission response:', response.data);
-      return response.data;
+      
+      // Handle the response based on the API documentation
+      if (response.data.success) {
+        return { 
+          success: true, 
+          message: response.data.message || 'Vote submitted successfully' 
+        };
+      } else {
+        return { 
+          success: false, 
+          error: response.data.error || 'Failed to submit vote' 
+        };
+      }
     } catch (error: any) {
       console.error('Error submitting vote:', error);
       

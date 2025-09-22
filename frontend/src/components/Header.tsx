@@ -135,6 +135,8 @@ const Header: React.FC<HeaderProps> = ({ isAuthenticated, voterId, hasVoted, onL
           <NavLink to="/">Home</NavLink>
           <NavLink to="/results">Results</NavLink>
           <NavLink to="/admin">Admin</NavLink>
+          <NavLink to="/demo">Fingerprint Demo</NavLink>
+          <NavLink to="/api-explorer">API Explorer</NavLink>
           
           {isAuthenticated && (
             <UserInfo>

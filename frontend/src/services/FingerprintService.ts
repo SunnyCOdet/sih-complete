@@ -104,24 +104,45 @@ export class FingerprintService {
   }
 
   /**
+   * Simulate fingerprint scanning for testing purposes
+   * This generates a realistic fingerprint ID without requiring hardware
+   */
+  static async simulateFingerprintScan(): Promise<string> {
+    return new Promise((resolve) => {
+      // Simulate realistic scanning delay
+      const delay = 1000 + Math.random() * 2000; // 1-3 seconds
+      
+      setTimeout(() => {
+        const fingerprintId = this.generateFingerprintId();
+        console.log('Simulated fingerprint scan:', fingerprintId);
+        resolve(fingerprintId);
+      }, delay);
+    });
+  }
+
+  /**
+   * Check if device supports real fingerprint scanning
+   */
+  static async isRealFingerprintSupported(): Promise<boolean> {
+    try {
+      if (!window.isSecureContext || !window.PublicKeyCredential) {
+        return false;
+      }
+      
+      return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+    } catch (error) {
+      console.error('Error checking fingerprint support:', error);
+      return false;
+    }
+  }
+
+  /**
    * Utility function for delays
    */
   private static delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  /**
-   * Fallback simulation method
-   */
-  private static simulateFingerprintScan(): Promise<string> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const fingerprintId = this.generateFingerprintId();
-        console.log('Simulated fingerprint scan:', fingerprintId);
-        resolve(fingerprintId);
-      }, 2000);
-    });
-  }
 
   /**
    * Generate fingerprint ID from WebAuthn credential

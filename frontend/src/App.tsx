@@ -7,9 +7,11 @@ import FingerprintAuth from './components/FingerprintAuth';
 import VotingInterface from './components/VotingInterface';
 import Results from './components/Results';
 import AdminPanel from './components/AdminPanel';
+import FingerprintDemo from './components/FingerprintDemo';
 import { VotingService } from './services/VotingService';
 import { FingerprintService, UserData } from './services/FingerprintService';
 import UserNameInput from './components/UserNameInput';
+import ApiExplorer from './components/ApiExplorer';
 
 const AppContainer = styled.div`
   min-height: 100vh;
@@ -204,31 +206,12 @@ function App() {
 
     setLoading(true);
     try {
-      const privateKey = localStorage.getItem('privateKey');
-      const publicKey = localStorage.getItem('publicKey');
-      
-      if (!privateKey) {
-        throw new Error('Private key not found');
-      }
-      
-      if (!publicKey) {
-        throw new Error('Public key not found');
-      }
-
-      console.log('Creating vote for candidate:', candidateId);
+      console.log('Submitting vote for candidate:', candidateId);
       console.log('Voter ID:', voterId);
-      console.log('Public Key:', publicKey);
 
-      // Create vote with ZK proof
-      const voteData = await VotingService.createVote(candidateId, voterId, privateKey);
-      console.log('Vote data created:', voteData);
-      
-      // Submit vote
+      // Submit vote using the simple API format
       const voteSubmission = {
-        publicKey: publicKey,
-        voteHash: voteData.voteHash,
-        signature: voteData.signature,
-        zeroKnowledgeProof: voteData.zeroKnowledgeProof,
+        voterId: voterId,
         candidateId: candidateId
       };
       
@@ -306,12 +289,15 @@ function App() {
                 <VotingInterface 
                   onVote={handleVote}
                   loading={loading}
+                  voterId={voterId}
                 />
               )
             } 
           />
           <Route path="/results" element={<Results />} />
           <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/demo" element={<FingerprintDemo />} />
+          <Route path="/api-explorer" element={<ApiExplorer />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </MainContent>

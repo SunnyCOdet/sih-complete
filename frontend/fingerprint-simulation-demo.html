@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fingerprint Simulation Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .demo-container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .title {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.2em;
+        }
+
+        .mode-toggle {
+            display: flex;
+            background: #f0f0f0;
+            border-radius: 25px;
+            padding: 5px;
+            margin: 20px auto;
+            width: 300px;
+        }
+
+        .mode-button {
+            flex: 1;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            background: transparent;
+            color: #666;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .mode-button.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .scanner-container {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin: 30px auto;
+            border: 3px solid #ddd;
+            border-radius: 50%;
+            background: #f9f9f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .scanner-container.scanning {
+            border-color: #667eea;
+            background: #f0f8ff;
+            animation: pulse 1.5s infinite;
+        }
+
+        .scanner-container.success {
+            border-color: #00aa00;
+            background: #e6ffe6;
+            animation: glow 0.5s ease-in-out;
+        }
+
+        .scanner-container.error {
+            border-color: #ff4444;
+            background: #ffe6e6;
+        }
+
+        .scanner-icon {
+            font-size: 4em;
+            color: #667eea;
+            transition: all 0.3s ease;
+        }
+
+        .scanner-container.scanning .scanner-icon {
+            animation: pulse 1s infinite;
+        }
+
+        .scan-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #00ff00, transparent);
+            opacity: 0;
+        }
+
+        .scanner-container.scanning .scan-line {
+            animation: scanLine 2s infinite;
+        }
+
+        .ripple-effect {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            background: #00ff00;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0;
+        }
+
+        .ripple-effect.show {
+            animation: ripple 0.6s ease-out;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #e9ecef;
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .scan-button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 200px;
+            margin: 20px 10px;
+        }
+
+        .scan-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .scan-button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .scan-button.scanning {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+        }
+
+        .test-fingerprints {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .test-fingerprint-button {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            padding: 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9em;
+        }
+
+        .test-fingerprint-button:hover {
+            background: #e9ecef;
+            border-color: #667eea;
+        }
+
+        .status-message {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-weight: 500;
+        }
+
+        .status-message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 30px 0;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            border: 2px solid #e9ecef;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+
+        @keyframes scanLine {
+            0% { transform: translateY(-100%); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(100%); opacity: 0; }
+        }
+
+        @keyframes ripple {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(4); opacity: 0; }
+        }
+
+        @keyframes glow {
+            0% { box-shadow: 0 0 5px #00ff00; }
+            50% { box-shadow: 0 0 20px #00ff00, 0 0 30px #00ff00; }
+            100% { box-shadow: 0 0 5px #00ff00; }
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <h1 class="title">🔐 Fingerprint Simulation Demo</h1>
+        <p class="subtitle">Interactive demonstration of fingerprint authentication</p>
+
+        <div class="mode-toggle">
+            <button class="mode-button active" onclick="setMode('simulation')">Simulation Mode</button>
+            <button class="mode-button" onclick="setMode('real')">Real Hardware</button>
+        </div>
+
+        <div id="compatibility-message" class="status-message hidden"></div>
+
+        <div class="scanner-container" id="scanner">
+            <div class="scanner-icon">🔍</div>
+            <div class="scan-line"></div>
+            <div class="ripple-effect" id="ripple"></div>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress"></div>
+        </div>
+
+        <div id="status-message" class="status-message hidden"></div>
+
+        <button class="scan-button" id="scan-button" onclick="startScan()">
+            Start Fingerprint Scan
+        </button>
+
+        <div id="test-fingerprints" class="test-fingerprints">
+            <button class="test-fingerprint-button" onclick="simulateFingerprint('test_fp_001', 'John Doe')">
+                <div><strong>John Doe</strong></div>
+                <div style="font-size: 0.8em; color: #666;">New User</div>
+            </button>
+            <button class="test-fingerprint-button" onclick="simulateFingerprint('test_fp_002', 'Jane Smith')">
+                <div><strong>Jane Smith</strong></div>
+                <div style="font-size: 0.8em; color: #666;">Returning User</div>
+            </button>
+            <button class="test-fingerprint-button" onclick="simulateFingerprint('test_fp_003', 'Bob Johnson')">
+                <div><strong>Bob Johnson</strong></div>
+                <div style="font-size: 0.8em; color: #666;">Admin User</div>
+            </button>
+            <button class="test-fingerprint-button" onclick="simulateFingerprint('test_fp_004', 'Alice Brown')">
+                <div><strong>Alice Brown</strong></div>
+                <div style="font-size: 0.8em; color: #666;">Test User</div>
+            </button>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="total-scans">0</div>
+                <div class="stat-label">Total Scans</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="successful-scans">0</div>
+                <div class="stat-label">Successful</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card">
+                    <div class="stat-value" id="failed-scans">0</div>
+                    <div class="stat-label">Failed</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="current-mode">Simulation</div>
+                <div class="stat-label">Current Mode</div>
+            </div>
+        </div>
+
+        <div style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 10px; text-align: left;">
+            <h4>Demo Features:</h4>
+            <ul style="margin: 10px 0; padding-left: 20px;">
+                <li><strong>Simulation Mode:</strong> Test with pre-configured fingerprints</li>
+                <li><strong>Real Hardware Mode:</strong> Use actual fingerprint scanner (if available)</li>
+                <li><strong>Visual Feedback:</strong> Realistic scanning animations and progress indicators</li>
+                <li><strong>Statistics:</strong> Track scanning attempts and success rates</li>
+                <li><strong>Responsive Design:</strong> Works on desktop and mobile devices</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let currentMode = 'simulation';
+        let isScanning = false;
+        let stats = {
+            totalScans: 0,
+            successfulScans: 0,
+            failedScans: 0
+        };
+
+        // Check device compatibility on load
+        window.onload = async () => {
+            await checkCompatibility();
+        };
+
+        async function checkCompatibility() {
+            const messageDiv = document.getElementById('compatibility-message');
+            
+            try {
+                if (!window.PublicKeyCredential) {
+                    showMessage('WebAuthn not supported in this browser', 'error');
+                    return;
+                }
+
+                const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+                
+                if (available) {
+                    showMessage('✅ Real fingerprint scanner detected and ready!', 'success');
+                } else {
+                    showMessage('⚠️ No real fingerprint scanner detected. Using simulation mode.', 'info');
+                }
+            } catch (error) {
+                showMessage('⚠️ Error checking compatibility. Using simulation mode.', 'info');
+            }
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.getElementById('current-mode').textContent = mode === 'real' ? 'Real Hardware' : 'Simulation';
+            
+            // Update mode buttons
+            document.querySelectorAll('.mode-button').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Show/hide test fingerprints based on mode
+            const testFingerprints = document.getElementById('test-fingerprints');
+            testFingerprints.style.display = mode === 'simulation' ? 'grid' : 'none';
+            
+            resetScanner();
+        }
+
+        function resetScanner() {
+            const scanner = document.getElementById('scanner');
+            const progress = document.getElementById('progress');
+            const statusMessage = document.getElementById('status-message');
+            const scanButton = document.getElementById('scan-button');
+            
+            scanner.className = 'scanner-container';
+            progress.style.width = '0%';
+            statusMessage.className = 'status-message hidden';
+            scanButton.disabled = false;
+            scanButton.textContent = 'Start Fingerprint Scan';
+            isScanning = false;
+        }
+
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('status-message');
+            messageDiv.textContent = text;
+            messageDiv.className = `status-message ${type}`;
+        }
+
+        function updateStats() {
+            document.getElementById('total-scans').textContent = stats.totalScans;
+            document.getElementById('successful-scans').textContent = stats.successfulScans;
+            document.getElementById('failed-scans').textContent = stats.failedScans;
+        }
+
+        async function startScan() {
+            if (isScanning) return;
+            
+            if (currentMode === 'real') {
+                await performRealScan();
+            } else {
+                // Random test fingerprint for simulation
+                const testFingerprints = [
+                    { id: 'test_fp_001', name: 'John Doe' },
+                    { id: 'test_fp_002', name: 'Jane Smith' },
+                    { id: 'test_fp_003', name: 'Bob Johnson' },
+                    { id: 'test_fp_004', name: 'Alice Brown' }
+                ];
+                const randomFingerprint = testFingerprints[Math.floor(Math.random() * testFingerprints.length)];
+                await simulateScan(randomFingerprint.id, randomFingerprint.name);
+            }
+        }
+
+        async function simulateFingerprint(fingerprintId, name) {
+            if (isScanning) return;
+            await simulateScan(fingerprintId, name);
+        }
+
+        async function simulateScan(fingerprintId, name) {
+            isScanning = true;
+            stats.totalScans++;
+            updateStats();
+            
+            const scanner = document.getElementById('scanner');
+            const progress = document.getElementById('progress');
+            const statusMessage = document.getElementById('status-message');
+            const scanButton = document.getElementById('scan-button');
+            const ripple = document.getElementById('ripple');
+            
+            // Start scanning animation
+            scanner.classList.add('scanning');
+            scanButton.disabled = true;
+            scanButton.textContent = 'Scanning...';
+            scanButton.classList.add('scanning');
+            
+            // Simulate scanning process
+            const steps = [
+                { message: 'Initializing scanner...', progress: 10 },
+                { message: 'Calibrating sensors...', progress: 25 },
+                { message: 'Detecting fingerprint...', progress: 50 },
+                { message: 'Analyzing patterns...', progress: 75 },
+                { message: 'Verifying identity...', progress: 90 },
+                { message: 'Authentication complete!', progress: 100 }
+            ];
+
+            for (const step of steps) {
+                await new Promise(resolve => setTimeout(resolve, 800));
+                showMessage(step.message, 'info');
+                progress.style.width = step.progress + '%';
+            }
+
+            // Show success
+            scanner.classList.remove('scanning');
+            scanner.classList.add('success');
+            ripple.classList.add('show');
+            showMessage(`✅ Fingerprint verified for ${name}!`, 'success');
+            
+            stats.successfulScans++;
+            updateStats();
+
+            // Reset after delay
+            setTimeout(() => {
+                ripple.classList.remove('show');
+                resetScanner();
+            }, 2000);
+        }
+
+        async function performRealScan() {
+            isScanning = true;
+            stats.totalScans++;
+            updateStats();
+            
+            const scanner = document.getElementById('scanner');
+            const progress = document.getElementById('progress');
+            const statusMessage = document.getElementById('status-message');
+            const scanButton = document.getElementById('scan-button');
+            
+            try {
+                scanner.classList.add('scanning');
+                scanButton.disabled = true;
+                scanButton.textContent = 'Scanning...';
+                scanButton.classList.add('scanning');
+                
+                showMessage('Place your finger on the scanner...', 'info');
+                progress.style.width = '30%';
+
+                const credentialRequestOptions = {
+                    challenge: crypto.getRandomValues(new Uint8Array(32)),
+                    allowCredentials: [],
+                    userVerification: 'required',
+                    timeout: 60000,
+                    rpId: window.location.hostname,
+                };
+
+                showMessage('Scanning fingerprint...', 'info');
+                progress.style.width = '60%';
+
+                const credential = await navigator.credentials.get({
+                    publicKey: credentialRequestOptions
+                });
+
+                if (credential) {
+                    progress.style.width = '100%';
+                    scanner.classList.remove('scanning');
+                    scanner.classList.add('success');
+                    showMessage('✅ Real fingerprint verified successfully!', 'success');
+                    
+                    stats.successfulScans++;
+                    updateStats();
+                } else {
+                    throw new Error('Fingerprint authentication failed');
+                }
+
+            } catch (error) {
+                console.error('Real scan failed:', error);
+                scanner.classList.remove('scanning');
+                scanner.classList.add('error');
+                
+                if (error.name === 'NotAllowedError' || error.name === 'AbortError') {
+                    showMessage('❌ Fingerprint authentication was cancelled', 'error');
+                } else {
+                    showMessage(`❌ Error: ${error.message}`, 'error');
+                }
+                
+                stats.failedScans++;
+                updateStats();
+            } finally {
+                scanButton.disabled = false;
+                scanButton.textContent = 'Start Fingerprint Scan';
+                scanButton.classList.remove('scanning');
+                
+                setTimeout(() => {
+                    resetScanner();
+                }, 3000);
+            }
+        }
+    </script>
+</body>
+</html>

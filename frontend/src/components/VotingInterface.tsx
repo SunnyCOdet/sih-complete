@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { toast } from 'react-toastify';
+import { SupabaseVotingService, Candidate } from '../services/supabaseVotingService';
 
 const VotingContainer = styled.div`
   max-width: 800px;
@@ -27,14 +28,14 @@ const Subtitle = styled.p`
   font-size: 1.1em;
 `;
 
-const PartiesGrid = styled.div`
+const CandidatesGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 30px;
   margin: 40px 0;
 `;
 
-const PartyCard = styled.div<{ selected: boolean; party: 'bjp' | 'congress' }>`
+const CandidateCard = styled.div<{ selected: boolean; candidateId: string }>`
   border: 3px solid ${props => props.selected ? '#28a745' : '#e9ecef'};
   border-radius: 20px;
   padding: 30px;
@@ -68,7 +69,7 @@ const PartyCard = styled.div<{ selected: boolean; party: 'bjp' | 'congress' }>`
     }
   `}
 
-  ${props => props.party === 'bjp' && `
+  ${props => props.candidateId === 'candidate_1' && `
     background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
     color: white;
     
@@ -77,7 +78,7 @@ const PartyCard = styled.div<{ selected: boolean; party: 'bjp' | 'congress' }>`
     }
   `}
 
-  ${props => props.party === 'congress' && `
+  ${props => props.candidateId === 'candidate_2' && `
     background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
     color: white;
     
@@ -85,26 +86,36 @@ const PartyCard = styled.div<{ selected: boolean; party: 'bjp' | 'congress' }>`
       background: linear-gradient(135deg, #1a3462 0%, #254a88 100%);
     }
   `}
+
+  ${props => props.candidateId === 'candidate_3' && `
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    
+    &:hover {
+      background: linear-gradient(135deg, #218838 0%, #1ea085 100%);
+    }
+  `}
 `;
 
-const PartySymbol = styled.div`
+const CandidateSymbol = styled.div`
   font-size: 4em;
   margin-bottom: 20px;
 `;
 
-const PartyName = styled.h2`
+const CandidateName = styled.h2`
   font-size: 1.8em;
   margin-bottom: 10px;
   font-weight: bold;
 `;
 
-const PartyFullName = styled.p`
+const CandidateId = styled.p`
   font-size: 1.1em;
   margin-bottom: 20px;
   opacity: 0.9;
+  font-weight: 600;
 `;
 
-const PartyDescription = styled.p`
+const CandidateDescription = styled.p`
   font-size: 0.95em;
   opacity: 0.8;
   line-height: 1.5;
@@ -220,78 +231,168 @@ const LoadingSpinner = styled.div`
 interface VotingInterfaceProps {
   onVote: (candidateId: string) => Promise<void>;
   loading: boolean;
+  voterId: string | null;
 }
 
-const VotingInterface: React.FC<VotingInterfaceProps> = ({ onVote, loading }) => {
-  const [selectedParty, setSelectedParty] = useState<string | null>(null);
+const VotingInterface: React.FC<VotingInterfaceProps> = ({ onVote, loading, voterId }) => {
+  const [selectedCandidate, setSelectedCandidate] = useState<string | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [candidatesLoading, setCandidatesLoading] = useState(true);
+  const [candidatesError, setCandidatesError] = useState<string | null>(null);
 
-  const parties = [
-    {
-      id: 'bjp',
-      name: 'BJP',
-      fullName: 'Bharatiya Janata Party',
-      symbol: '🕉️',
-      description: 'A right-wing political party in India, founded in 1980. Known for its nationalist ideology and focus on economic development.'
-    },
-    {
-      id: 'congress',
-      name: 'Congress',
-      fullName: 'Indian National Congress',
-      symbol: '✋',
-      description: 'One of the oldest political parties in India, founded in 1885. Known for its secular ideology and social welfare programs.'
-    }
-  ];
+  // Fetch candidates from database
+  useEffect(() => {
+    const fetchCandidates = async () => {
+      try {
+        setCandidatesLoading(true);
+        setCandidatesError(null);
+        const candidatesData = await SupabaseVotingService.getCandidates();
+        
+        // Filter to only show candidates 1, 2, and 3
+        const filteredCandidates = candidatesData.filter(candidate => 
+          ['candidate_1', 'candidate_2', 'candidate_3'].includes(candidate.candidateId)
+        );
+        
+        setCandidates(filteredCandidates);
+      } catch (error) {
+        console.error('Error fetching candidates:', error);
+        setCandidatesError('Failed to load candidates. Please try again.');
+      } finally {
+        setCandidatesLoading(false);
+      }
+    };
 
-  const handlePartySelect = (partyId: string) => {
-    setSelectedParty(partyId);
+    fetchCandidates();
+  }, []);
+
+  const handleCandidateSelect = (candidateId: string) => {
+    setSelectedCandidate(candidateId);
   };
 
   const handleVoteClick = () => {
-    if (!selectedParty) {
-      toast.error('Please select a party to vote for');
+    if (!voterId) {
+      toast.error('Voter ID is required to cast a vote');
+      return;
+    }
+    
+    if (!selectedCandidate) {
+      toast.error('Please select a candidate to vote for');
       return;
     }
     setShowConfirmation(true);
   };
 
   const handleConfirmVote = async () => {
-    if (!selectedParty) return;
+    if (!selectedCandidate) return;
     
     setShowConfirmation(false);
-    await onVote(selectedParty);
+    await onVote(selectedCandidate);
   };
 
   const handleCancelVote = () => {
     setShowConfirmation(false);
   };
 
-  const selectedPartyData = parties.find(p => p.id === selectedParty);
+  const selectedCandidateData = candidates.find(c => c.candidateId === selectedCandidate);
+
+  // Show loading state while fetching candidates
+  if (candidatesLoading) {
+    return (
+      <VotingContainer>
+        <VotingCard>
+          <Title>Cast Your Vote</Title>
+          <Subtitle>Loading candidates...</Subtitle>
+          <div style={{ textAlign: 'center', padding: '40px' }}>
+            <LoadingSpinner />
+          </div>
+        </VotingCard>
+      </VotingContainer>
+    );
+  }
+
+  // Show error state if candidates failed to load
+  if (candidatesError) {
+    return (
+      <VotingContainer>
+        <VotingCard>
+          <Title>Cast Your Vote</Title>
+          <Subtitle style={{ color: '#dc3545' }}>{candidatesError}</Subtitle>
+          <button 
+            onClick={() => window.location.reload()} 
+            style={{
+              background: 'linear-gradient(45deg, #007bff, #0056b3)',
+              color: 'white',
+              border: 'none',
+              padding: '12px 24px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '1em',
+              marginTop: '20px'
+            }}
+          >
+            Retry
+          </button>
+        </VotingCard>
+      </VotingContainer>
+    );
+  }
+
+  // Show message if no candidates found
+  if (candidates.length === 0) {
+    return (
+      <VotingContainer>
+        <VotingCard>
+          <Title>Cast Your Vote</Title>
+          <Subtitle style={{ color: '#dc3545' }}>No candidates available for voting</Subtitle>
+        </VotingCard>
+      </VotingContainer>
+    );
+  }
 
   return (
     <VotingContainer>
       <VotingCard>
         <Title>Cast Your Vote</Title>
-        <Subtitle>Select the party you want to vote for</Subtitle>
+        <Subtitle>Select the candidate you want to vote for</Subtitle>
+        
+        {voterId && (
+          <div style={{ 
+            background: '#e7f3ff', 
+            border: '1px solid #b3d9ff', 
+            borderRadius: '8px', 
+            padding: '15px', 
+            marginBottom: '20px',
+            color: '#0066cc'
+          }}>
+            <strong>Voter ID:</strong> {voterId}
+          </div>
+        )}
 
-        <PartiesGrid>
-          {parties.map((party) => (
-            <PartyCard
-              key={party.id}
-              selected={selectedParty === party.id}
-              party={party.id as 'bjp' | 'congress'}
-              onClick={() => handlePartySelect(party.id)}
+        <CandidatesGrid>
+          {candidates.map((candidate) => (
+            <CandidateCard
+              key={candidate.candidateId}
+              selected={selectedCandidate === candidate.candidateId}
+              candidateId={candidate.candidateId}
+              onClick={() => handleCandidateSelect(candidate.candidateId)}
             >
-              <PartySymbol>{party.symbol}</PartySymbol>
-              <PartyName>{party.name}</PartyName>
-              <PartyFullName>{party.fullName}</PartyFullName>
-              <PartyDescription>{party.description}</PartyDescription>
-            </PartyCard>
+              <CandidateSymbol>
+                {candidate.candidateId === 'candidate_1' && '🕉️'}
+                {candidate.candidateId === 'candidate_2' && '✋'}
+                {candidate.candidateId === 'candidate_3' && '🌿'}
+              </CandidateSymbol>
+              <CandidateName>{candidate.name}</CandidateName>
+              <CandidateId>ID: {candidate.candidateId}</CandidateId>
+              <CandidateDescription>
+                {candidate.description || `Vote for ${candidate.name} in this election.`}
+              </CandidateDescription>
+            </CandidateCard>
           ))}
-        </PartiesGrid>
+        </CandidatesGrid>
 
         <VoteButton
-          disabled={!selectedParty || loading}
+          disabled={!selectedCandidate || loading || !voterId}
           onClick={handleVoteClick}
         >
           {loading ? (
@@ -304,9 +405,9 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ onVote, loading }) =>
           )}
         </VoteButton>
 
-        {selectedParty && (
+        {selectedCandidate && (
           <div style={{ marginTop: '20px', color: '#666', fontSize: '0.9em' }}>
-            Selected: <strong>{selectedPartyData?.fullName}</strong>
+            Selected: <strong>{selectedCandidateData?.name}</strong> ({selectedCandidateData?.candidateId})
           </div>
         )}
       </VotingCard>
@@ -315,7 +416,9 @@ const VotingInterface: React.FC<VotingInterfaceProps> = ({ onVote, loading }) =>
         <ModalContent>
           <ModalTitle>Confirm Your Vote</ModalTitle>
           <ModalText>
-            You are about to vote for <strong>{selectedPartyData?.fullName}</strong>.
+            You are about to vote for <strong>{selectedCandidateData?.name}</strong> ({selectedCandidateData?.candidateId}).
+            <br /><br />
+            <strong>Voter ID:</strong> {voterId}
             <br /><br />
             This action cannot be undone. Are you sure you want to proceed?
           </ModalText>
